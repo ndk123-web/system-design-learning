@@ -128,11 +128,7 @@ Certificate Service picks one and calls it.
 
 ## 5️⃣ Visual Mental Model
 
-![Image](https://microservices.io/i/servicediscovery/server-side-discovery.jpg)
-
 ![Image](https://miro.medium.com/1%2A6XpOlHyp51gAyYxLtk51JQ.png)
-
-![Image](https://devopscube.com/content/images/2025/03/image-13-29.png)
 
 ```
 [Auth Service] ──register──▶ [Service Registry]
