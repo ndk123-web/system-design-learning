@@ -1,177 +1,171 @@
-# 1️⃣ WHY sharding exists (problem first)
+# Database Sharding — Clear Mental Model (Why → What → How)
 
-### Single database limits (even with replicas)
+## 1. Why Sharding Exists
 
-Even if you add:
+### The real problem
 
-- read replicas
-- stronger machines
-- better indexes
+Replication **copies** data. It does not reduce data size or write pressure.
 
-You still hit **hard limits**:
+If you have:
 
-❌ Disk size limit
-❌ Index too big
-❌ Writes bottleneck
-❌ Cache misses increase
-❌ One machine = one failure domain
+* 10M users
+* 1 database
 
-> Replication **duplicates** data
-> Sharding **divides** data
+Then replication gives:
 
----
+* 10M × N replicas
+* more storage
+* more sync cost
+* **same write bottleneck**
 
-## Core truth
+This is why replication alone feels **wasteful and slow** at scale — that instinct is correct.
 
-> **Replication scales reads.
-> Sharding scales data + writes.**
+### Core truth
 
----
+> **Replication is for safety.**
+> **Sharding is for growth.**
 
-# 2️⃣ WHAT sharding actually is
-
-### Simple definition
-
-> Sharding = **splitting data horizontally** across multiple databases
-
-Each database stores **only a subset** of rows.
+When data or write volume outgrows a single database machine, sharding becomes mandatory.
 
 ---
 
-### Example (users table)
+## 2. What Sharding Actually Is
 
-Instead of:
+Sharding = **horizontal partitioning of data**.
+
+Instead of one big database:
 
 ```
 Users DB
-1 → 1 million users
+  └── 10M users
 ```
 
-You do:
+You split it:
 
 ```
-Shard 1 → users 1 – 1M
-Shard 2 → users 1M – 2M
-Shard 3 → users 2M – 3M
+Shard A → 0–5M users
+Shard B → 5M–10M users
 ```
 
 Each shard:
 
-- independent DB
-- smaller indexes
-- faster queries
+* is an independent database
+* owns only a subset of rows
+* has smaller indexes
+* handles its own reads and writes
+
+Important:
+
+* Shards do **not** contain the same data
+* This is not replication
 
 ---
 
-# 3️⃣ WHAT sharding is NOT (important)
+## 3. Sharding vs Replication (Do NOT mix these)
 
-❌ Not replication
-❌ Not backup
-❌ Not read scaling
+| Concept     | Purpose                    | Effect           |
+| ----------- | -------------------------- | ---------------- |
+| Replication | Availability, read scaling | Copies same data |
+| Sharding    | Data & write scaling       | Splits data      |
 
-Replication = **same data copied**
-Sharding = **different data split**
-
----
-
-# 4️⃣ HOW sharding works (core mechanics)
-
-Everything depends on **SHARD KEY**.
-
-## Shard Key = rule that decides:
-
-> “Which row goes to which shard?”
+Correct production systems **always combine both**.
 
 ---
 
-## 3 common sharding strategies
+## 4. How Sharding Works (The Only Thing That Matters)
+
+### Shard Key
+
+A **shard key** decides:
+
+> Which row goes to which shard
+
+Everything depends on this.
+
+Bad shard key = dead system.
 
 ---
 
-### 🔹 1. Range-based sharding
+## 5. Common Sharding Strategies
 
-```text
-user_id 1–1M     → Shard A
-user_id 1M–2M    → Shard B
+### 1) Range-based sharding
+
+```
+user_id 1–1M   → Shard A
+user_id 1M–2M  → Shard B
 ```
 
 **Pros**
 
-- Simple
-- Range queries fast
+* Simple
+* Range queries fast
 
 **Cons**
 
-- Hot shards (new users always hit last shard)
+* Hot shards (new users pile up)
 
 ---
 
-### 🔹 2. Hash-based sharding (most common)
+### 2) Hash-based sharding (most common)
 
-```text
+```
 shard = hash(user_id) % N
 ```
 
 Example:
 
-```text
-hash(101) % 4 = shard 1
-hash(202) % 4 = shard 2
+```
+hash(123) % 2 = shard 1
 ```
 
 **Pros**
 
-- Even distribution
-- No hot shard
+* Even data distribution
+* No hot shard
 
 **Cons**
 
-- Range queries impossible
+* Range queries impossible
 
 ---
 
-### 🔹 3. Directory-based sharding
+### 3) Directory-based sharding
 
 ```
-User → Lookup service → Shard
+user_id → lookup service → shard
 ```
 
-Flexible but adds:
+**Pros**
 
-- extra network hop
-- extra failure point
+* Flexible
+
+**Cons**
+
+* Extra hop
+* Extra failure point
 
 ---
 
-# 5️⃣ HOW a request flows (step-by-step)
+## 6. Request Flow in a Sharded System
 
-### Example: fetch user 123
+### Read / Write example
 
 ```
 Client
- → App
- → Shard Router
- → Shard DB
- → Result
+ → Application
+ → Shard Router (uses shard key)
+ → Correct Shard DB
+ → Response
 ```
 
-Key point:
-
-> **Shard routing happens BEFORE query**
-
-DB never scans all shards.
+The database **never scans all shards**.
+Routing happens **before** the query.
 
 ---
 
-# 6️⃣ EXAMPLE (users database)
+## 7. Inserts, Reads, Updates (Important Rules)
 
-### Shard rule
-
-```text
-hash(user_id) % 2
-```
-
-### Inserts
+### Insert
 
 ```sql
 INSERT INTO users (id, name) VALUES (123, 'ndk');
@@ -180,15 +174,12 @@ INSERT INTO users (id, name) VALUES (123, 'ndk');
 Flow:
 
 ```
-hash(123) → shard 1
-write → shard 1 DB
+hash(123) → shard 1 → write
 ```
-
-Shard 0 never sees this row.
 
 ---
 
-### Reads
+### Read
 
 ```sql
 SELECT * FROM users WHERE id = 123;
@@ -197,19 +188,14 @@ SELECT * FROM users WHERE id = 123;
 Flow:
 
 ```
-hash(123) → shard 1
-read → shard 1 DB
+hash(123) → shard 1 → read
 ```
 
-Fast. Direct. No scan.
+Fast and direct.
 
 ---
 
-# 7️⃣ HOW updates work in sharding
-
-Updates **must include shard key**.
-
-✅ Valid:
+### Update (must include shard key)
 
 ```sql
 UPDATE users SET name='NDK' WHERE id=123;
@@ -221,85 +207,99 @@ UPDATE users SET name='NDK' WHERE id=123;
 UPDATE users SET status='active';
 ```
 
-Why?
-
-> That would require hitting **ALL shards**
-
-Sharded systems **forbid scatter-gather writes**.
+This would require **scatter-gather across all shards** and is usually forbidden.
 
 ---
 
-# 8️⃣ WHAT happens if one shard goes down
+## 8. Replication Inside Shards (This Is the Missing Click)
 
-### Without replication
-
-```
-Shard B down → users in shard B unavailable
-```
-
-### With replication (real systems)
+Sharding increases **failure surface** (more machines).
+So **each shard must be replicated**.
 
 ```
+Shard A:
+  Primary
+  Replica 1
+  Replica 2
+
 Shard B:
   Primary
   Replica 1
   Replica 2
 ```
 
-If primary dies → replica promoted
-Other shards unaffected
+### Why replication is used with sharding
 
-> Sharding + replication is mandatory in production
+* If shard primary fails → replica promoted
+* Shard stays available
+* No data loss
 
----
-
-# 9️⃣ WHY sharding improves performance
-
-| Area          | Before     | After        |
-| ------------- | ---------- | ------------ |
-| Index size    | Huge       | Small        |
-| Cache         | Low hit    | High hit     |
-| Writes        | Bottleneck | Parallel     |
-| Reads         | Slow       | Fast         |
-| Failure blast | Whole DB   | Single shard |
+Replication here is **not for scaling users** — it is for **survival**.
 
 ---
 
-# 🔟 HARD PROBLEMS sharding introduces (no sugar)
+## 9. Why Your Insight Is Correct
 
-❌ Cross-shard joins
-❌ Transactions across shards
-❌ Resharding pain
-❌ Operational complexity
+> "10M users × N replicas feels wasteful and slow"
 
-That’s why:
+Correct.
 
-> **You shard only when forced**
+That is why:
 
----
+* Big systems **never rely on replication alone**
+* Sharding reduces base data size
+* Replication protects each shard
 
-# 1️⃣1️⃣ REAL SYSTEMS using sharding
-
-- User databases (by user_id)
-- Orders (by customer_id)
-- Logs (by time bucket)
-- Metrics (by time + service)
-
----
-
-# 1️⃣2️⃣ FINAL MENTAL MODEL (LOCK THIS)
+Correct formula:
 
 ```
-Replication → safety + read scale
-Sharding     → data + write scale
+(total users / shards) × replicas
+```
 
-Shard Key decides everything
-Bad shard key = dead system
+Not:
+
+```
+total users × replicas × replicas
 ```
 
 ---
 
-## ONE-LINE RULE (IMPORTANT)
+## 10. Failure Scenarios
 
-> **If one DB can’t hold your data or writes → shard.
-> If one DB is just slow → replicate or cache.**
+### One shard down
+
+* Only users on that shard affected
+* Other shards continue working
+
+### With replication
+
+* Replica promoted
+* Shard recovers
+* No global outage
+
+---
+
+## 11. When Sharding Is Required
+
+✅ Data doesn’t fit on one DB
+✅ Writes exceed single-node capacity
+✅ Indexes too large
+
+### When NOT to shard
+
+❌ Early-stage apps
+❌ Low write volume
+❌ Complex joins required
+
+---
+
+## Final Lock-in Mental Model
+
+```
+Replication → safety & availability
+Sharding     → data & write scale
+
+Shard key decides everything
+```
+
+> **Shard to grow. Replicate to survive.**
