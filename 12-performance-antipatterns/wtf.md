@@ -1,48 +1,66 @@
-# 📘 Performance Antipatterns (System Design)
+# 📘 Performance Antipatterns — System Design README
 
 ## WHAT ARE PERFORMANCE ANTIPATTERNS
 
-> **Performance antipatterns** are **common design mistakes** that look correct logically
-> but cause **slow systems, high load, and poor scalability**.
+**Performance antipatterns** are **common design mistakes** that:
 
-They are not syntax errors.
-They are **thinking errors**.
+- Look logically correct
+- Work fine at small scale
+- **Fail badly at scale**
 
-Most systems become slow **because of these**, not because of hardware.
+They don’t break correctness.
+They break **latency, throughput, and stability**.
 
----
+In short:
 
-## WHY THEY HAPPEN
-
-They happen because:
-
-- Developers think locally, not system-wide
-- Initial system works fine at small scale
-- Real workload is misunderstood
-- Convenience > efficiency
-- Abstractions hide cost (ORMs, APIs, microservices)
+> **Antipatterns are patterns that work initially but scale poorly.**
 
 ---
 
-## 1️⃣ N+1 QUERIES (VERY COMMON)
+## WHY PERFORMANCE ANTIPATTERNS HAPPEN
 
-### WHAT IT IS
+They happen because of:
 
-> **One query to fetch parent data,
-> then N queries to fetch child data — one per parent.**
+- Thinking locally, not system-wide
+- Hidden costs (ORMs, network calls)
+- Small test data
+- Convenience over efficiency
+- Lack of workload understanding
 
----
-
-### HOW IT HAPPENS
-
-Typical flow:
-
-1. Fetch list of users
-2. For each user, fetch orders
+Most slow systems are slow due to **design**, not hardware.
 
 ---
 
-### EXAMPLE (BAD)
+## HOW PERFORMANCE ANTIPATTERNS APPEAR
+
+They usually appear as:
+
+- Extra database queries
+- Too many network calls
+- Fetching more data than needed
+- Poor algorithm choices
+
+Below are the **most common and dangerous ones**.
+
+---
+
+# 1️⃣ N+1 QUERIES
+
+## WHAT
+
+> One query to fetch parent data
+>
+> - N queries to fetch related data (one per item)
+
+---
+
+## HOW IT HAPPENS
+
+Code fetches a list, then loops and queries inside the loop.
+
+---
+
+## EXAMPLE (BAD)
 
 ```js
 users = db.getUsers(); // 1 query
@@ -52,23 +70,23 @@ for (user of users) {
 }
 ```
 
-If:
+If there are 1,000 users:
 
-- 1,000 users
-  → **1 + 1000 = 1001 queries**
+```
+1 + 1000 = 1001 DB queries
+```
 
 ---
 
-### WHY THIS IS BAD
+## WHY THIS IS BAD
 
-- DB load explodes
+- Database load explodes
 - Latency increases linearly
-- Looks fine in dev (small data)
-- Kills production
+- Works in dev, breaks in prod
 
 ---
 
-### FIX / LOGIC
+## FIX / LOGIC
 
 Fetch related data **in bulk**.
 
@@ -80,69 +98,68 @@ LEFT JOIN orders ON users.id = orders.user_id;
 
 Or:
 
-- Use joins
-- Use batching
-- Use DataLoader (GraphQL)
+- Joins
+- Batch queries
+- DataLoader (GraphQL)
 
 ---
 
-### MENTAL RULE
+## CONCEPT
 
-> **If a loop contains a DB/API call → suspect N+1**
-
----
-
-## 2️⃣ CHATTY INTERFACES
-
-### WHAT IT IS
-
-> **Too many small network calls instead of fewer meaningful ones.**
+> **If a loop contains a DB call, assume N+1 until proven otherwise.**
 
 ---
 
-### HOW IT HAPPENS
+# 2️⃣ CHATTY INTERFACES
 
-Microservices + naive design.
+## WHAT
+
+> Too many small and frequent network calls
+> instead of fewer meaningful ones.
 
 ---
 
-### EXAMPLE (BAD)
+## HOW IT HAPPENS
 
-Frontend wants dashboard:
+Microservices + naive API design.
+
+---
+
+## EXAMPLE (BAD)
+
+Frontend dashboard loads:
 
 ```
 GET /user
 GET /user/profile
 GET /user/settings
-GET /user/notifications
 GET /user/orders
+GET /user/notifications
 ```
 
-5 network calls
 Each call:
 
-- TCP
+- Network latency
 - Serialization
 - Auth
-- Latency
+- TCP overhead
 
 ---
 
-### WHY THIS IS BAD
+## WHY THIS IS BAD
 
-- Network latency dominates
-- Tail latency increases
-- Mobile networks suffer
-- Cascading failures
+- Network dominates latency
+- Mobile clients suffer
+- Cascading failures increase
 
 ---
 
-### FIX / LOGIC
+## FIX / LOGIC
 
 - Aggregate APIs
 - Backend-for-Frontend (BFF)
 - GraphQL
-- Batch requests
+- Batch endpoints
 
 Example:
 
@@ -150,118 +167,100 @@ Example:
 GET /dashboard
 ```
 
-or GraphQL:
-
-```graphql
-query {
-  user {
-    profile
-    settings
-    orders
-  }
-}
-```
-
 ---
 
-### MENTAL RULE
+## CONCEPT
 
 > **Network calls are expensive.
-> Make fewer of them.**
+> Make fewer, smarter calls.**
 
 ---
 
-## 3️⃣ UNBOUNDED DATA (SILENT KILLER)
+# 3️⃣ UNBOUNDED DATA
 
-### WHAT IT IS
+## WHAT
 
-> **Fetching or processing data without limits.**
+> Fetching or processing data without limits.
 
 ---
 
-### HOW IT HAPPENS
+## HOW IT HAPPENS
 
-Developer writes:
+Developer assumes data is “small”.
+
+---
+
+## EXAMPLE (BAD)
 
 ```sql
 SELECT * FROM logs;
 ```
 
-or:
+or
 
 ```http
 GET /orders
 ```
 
-with no pagination.
+(no pagination)
 
 ---
 
-### WHY THIS IS BAD
+## WHY THIS IS BAD
 
 - Memory spikes
 - Slow responses
 - Timeouts
-- Crashes under load
-
-Works fine:
-
-- With 100 rows
-  Fails badly:
-- With 10 million rows
+- Crashes at scale
 
 ---
 
-### EXAMPLE (BAD)
+## FIX / LOGIC
 
-```js
-orders = db.getAllOrders();
-```
-
----
-
-### FIX / LOGIC
-
-Always:
-
-- Paginate
-- Limit
-- Filter
+Always bound data:
 
 ```sql
-SELECT * FROM orders
+SELECT *
+FROM orders
 ORDER BY created_at
 LIMIT 50 OFFSET 0;
 ```
 
----
+Use:
 
-### MENTAL RULE
-
-> **Never trust data size — always bound it.**
-
----
-
-## 4️⃣ INEFFICIENT ALGORITHMS
-
-### WHAT IT IS
-
-> Using an algorithm whose complexity does not scale.
+- Pagination
+- Limits
+- Filters
 
 ---
 
-### HOW IT HAPPENS
+## CONCEPT
+
+> **Never trust data size.
+> Always assume it will grow.**
+
+---
+
+# 4️⃣ INEFFICIENT ALGORITHMS
+
+## WHAT
+
+> Using algorithms that do not scale with data size.
+
+---
+
+## HOW IT HAPPENS
 
 Naive logic works at small scale.
 
 ---
 
-### EXAMPLE (BAD)
+## EXAMPLE (BAD)
 
 ```js
-for (i in users) {
-  for (j in orders) {
-    if (users[i].id === orders[j].userId) {
+for (user of users) {
+  for (order of orders) {
+    if (user.id === order.userId) {
       ...
     }
   }
@@ -276,24 +275,21 @@ O(N × M)
 
 ---
 
-### WHY THIS IS BAD
+## WHY THIS IS BAD
 
 - CPU usage explodes
-- Latency grows exponentially
-- Hardware scaling won’t save you
+- Latency grows fast
+- Hardware scaling doesn’t help
 
 ---
 
-### FIX / LOGIC
+## FIX / LOGIC
 
-Use:
-
-- Hash maps
-- Indexes
-- Better data structures
+Use better data structures:
 
 ```js
 orderMap = new Map();
+
 for (order of orders) {
   orderMap.set(order.userId, order);
 }
@@ -305,40 +301,45 @@ for (user of users) {
 
 ---
 
-### MENTAL RULE
+## CONCEPT
 
 > **Algorithmic inefficiency beats hardware every time.**
 
 ---
 
-## BIG PICTURE: WHY THESE ARE DANGEROUS
+# BIG PICTURE LOGIC
 
-All antipatterns:
+All performance antipatterns share traits:
 
-- Work fine initially
-- Fail catastrophically at scale
-- Are hard to debug later
+- Hidden at small scale
+- Explode at large scale
+- Hard to fix later
 - Require redesign, not tuning
 
 ---
 
-## HOW TO THINK LIKE A SYSTEM DESIGNER
+## HOW TO THINK TO AVOID THEM
 
 Ask these questions:
 
 - Is this inside a loop?
-- Is this a network call?
+- Is this a DB or network call?
 - Is data size bounded?
-- Does this grow linearly or exponentially?
-- What happens at 10× load?
+- How does this behave at 10× load?
+- Can this be batched?
 
 ---
 
-## FINAL SUMMARY (LOCK THIS)
+## FINAL CONCEPTUAL MODEL (LOCK THIS)
 
-> **Performance antipatterns are design mistakes that scale poorly —
-> they don’t break correctness, they break systems under load.**
+```
+Correctness ≠ Performance
+Works in dev ≠ Works at scale
+Design mistakes ≠ Hardware problems
+```
 
-Or simpler:
+---
 
-> **Slow systems are usually slow by design, not by hardware.**
+## FINAL ONE-LINE SUMMARY
+
+> **Performance antipatterns are common design mistakes that scale poorly — they don’t break correctness, they break systems under real load.**
