@@ -4,6 +4,8 @@
 
 Static Content Hosting is a cloud design pattern where static files (HTML, CSS, JS, images) are served directly from cloud storage through a CDN, instead of application servers, to achieve high scalability, low latency, and lower cost.
 
+![Image](../../public/static-hosting.png)
+
 ---
 
 ## 1. WHAT (What is Static Content Hosting?)
