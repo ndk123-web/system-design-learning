@@ -4,7 +4,9 @@
 
 Sharding is a scaling technique where you manually create multiple independent databases with the same schema, and the application decides which database to use for each request using a routing rule (shard key).
 
+<!-- <div height=400 width=400> -->
 ![Image](https://substackcdn.com/image/fetch/%24s_%21pFd9%21%2Cf_auto%2Cq_auto%3Agood%2Cfl_progressive%3Asteep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F1abf2943-92a8-479a-82c2-769ec96a5513_2366x1314.png)
+<!-- </div> -->
 
 ## 1. WHAT (What is Sharding — very clearly)
 
