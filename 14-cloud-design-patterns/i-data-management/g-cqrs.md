@@ -307,20 +307,9 @@ Or simply:
 
 CQRS separates write and read responsibilities into different models—often synchronized asynchronously—so each can be optimized independently for correctness, scalability, and performance.
 
-```
+## CQRS VS EVENT SOURCING VS CQRS + EVENT SOURCING
+1. CQRS separates write and read models; read models are updated asynchronously (often via message brokers).
 
----
+2. Event Sourcing stores all changes as immutable events in an append-only Event Store; projections are derived from these events.
 
-## ✅ YOUR DOUBTS — FINAL CONFIRMATION
-
-You were right that:
-
-- Reads and writes use different databases/models
-- Read DB is updated asynchronously (often via Kafka)
-- Read DB can be heavily replicated and sharded
-- Event Sourcing + CQRS fit naturally
-- Materialized views act as read models
-- Eventual consistency is expected
-
-This is **correct CQRS understanding**.
-```
+3. CQRS + Event Sourcing means writes append events to the Event Store, and read databases are updated only by consuming those events—not by direct writes.
