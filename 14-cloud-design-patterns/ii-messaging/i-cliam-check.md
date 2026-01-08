@@ -4,6 +4,8 @@ The **Claim Check** pattern is used to handle **large payloads** in distributed 
 
 Instead of sending the full payload through the message bus, the system sends only a **reference (claim check)** to where the payload is stored.
 
+![Image](https://learn.microsoft.com/en-us/azure/architecture/patterns/_images/claim-check-diagram.svg)
+
 ---
 
 ## 1️⃣ What is Claim Check?

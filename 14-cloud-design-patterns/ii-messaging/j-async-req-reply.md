@@ -4,6 +4,8 @@ The **Asynchronous Request–Reply** pattern is used when a client needs a **cle
 
 The key idea is to **decouple request acceptance from request completion** while still keeping the client informed in a clean, HTTP-friendly way.
 
+![Image](https://learn.microsoft.com/en-us/azure/architecture/patterns/_images/async-request.png)
+
 ---
 
 ## 1️⃣ What is Asynchronous Request–Reply?
