@@ -1,4 +1,4 @@
-# 📦 Deployment Stamps (System Design / Availability)
+# 📦 Deployment Stamps 
 
 ## 📌 What problem does this solve?
 
@@ -15,6 +15,7 @@ If **everything runs on one system**, failure affects **everyone**.
 
 Deployment Stamps reduce **blast radius**.
 
+![Image](https://learn.microsoft.com/en-us/azure/architecture/patterns/_images/deployment-stamp/deployment-stamp-traffic-routing.png)
 ---
 
 ## 🧠 Core Definitions (clear once, no confusion later)
@@ -134,8 +135,6 @@ Stored in:
 ---
 
 ## 🔁 REQUEST FLOW (MOST IMPORTANT)
-
-![Image](https://learn.microsoft.com/en-us/azure/architecture/patterns/_images/deployment-stamp/deployment-stamp-traffic-routing.png)
 
 ![Image](https://miro.medium.com/0%2AVQqNNC5BcoORG6BY.png)
 
