@@ -12,6 +12,8 @@ They exist because **distributed systems cannot do real rollbacks**.
 
 ---
 
+![Image](https://microservices.io/i/sagas/Create_Order_Saga_Orchestration.png)
+
 ## 🧠 ONE-LINE IDEA (LOCK THIS)
 
 > **In distributed systems, you don’t rollback — you compensate.**
@@ -131,8 +133,6 @@ There is **no global rollback order**.
 ---
 
 ## HOW COMPENSATION ACTUALLY HAPPENS
-
-![Image](https://microservices.io/i/sagas/Create_Order_Saga_Orchestration.png)
 
 ![Image](https://eda-visuals.boyney.io/assets/visuals/eda/eventual-consistency.png)
 
