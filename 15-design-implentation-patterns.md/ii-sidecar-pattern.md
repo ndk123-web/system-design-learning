@@ -2,10 +2,6 @@
 
 ![Image](https://media.geeksforgeeks.org/wp-content/uploads/20240417124633/What-is-Side-Car-Design-Pattern-%282%29.webp)
 
-![Image](https://learncloudnative.com/assets/posts/img/sidecar-log-collector.png)
-
-![Image](https://substackcdn.com/image/fetch/%24s_%21qCSd%21%2Cf_auto%2Cq_auto%3Agood%2Cfl_progressive%3Asteep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F9d519eed-820d-465b-bc14-b7d18b1596ca_1600x1058.png)
-
 ---
 
 ## 🔹 ONE-LINE INTUITION (lock this first)
